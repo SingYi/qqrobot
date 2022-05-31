@@ -11,6 +11,8 @@ import net.mamoe.mirai.event.events.GroupMessageEvent;
 
 import java.io.*;
 import java.util.ArrayList;
+import java.util.HashSet;
+import java.util.Set;
 
 /**
  * 使用 Java 请把
@@ -44,13 +46,15 @@ public final class XinyueRobotMain extends JavaPlugin {
     private static File sensitiveWordFile; // 敏感词文件
 
     private static ArrayList<String> adminList; // 管理员列表
+    private static ArrayList<String> sensitiveWordList; // 管理员列表
 
     @Override
     public void onEnable() {
         LogI("onEnable");
         // 1. 初始化配置文件
         initConfig();
-
+        // 2. 初始化敏感词
+        initSensitiveWord();
 
 //        getLogger().info("onEnable");
 //        EventChannel<Event> eventChannel = GlobalEventChannel.INSTANCE.parentScope(this);
@@ -75,26 +79,34 @@ public final class XinyueRobotMain extends JavaPlugin {
         adminUserFile = XinyueRobotMain.INSTANCE.resolveDataFile("admin.txt");
         sensitiveWordFile = XinyueRobotMain.INSTANCE.resolveDataFile("sensitiveWord.txt");
         adminList = new ArrayList<>();
-        try
-        {
+        sensitiveWordList = new ArrayList<>();
+        try {
+            LogI("读取管理员配置");
             readDataToList(adminUserFile, adminList);
-        }
-        catch(IOException e)
-        {
-            e.printStackTrace();
+            LogI("读取敏感词配置");
+            readDataToList(sensitiveWordFile, sensitiveWordList);
+        } catch (IOException e) {
             getLogger().info("读取数据失败！");
         }
         LogI("初始化配置文件完毕");
     }
 
-    private void readDataToList(File data, ArrayList<String> list) throws IOException
-    {
+    /**
+     * 初始化敏感词
+     */
+    private void initSensitiveWord() {
+        LogI("初始化敏感词");
+        Set<String> tmp = new HashSet<>(sensitiveWordList);
+        SensitiveWordUtil.init(tmp);
+        LogI("初始化敏感词完毕");
+    }
+
+    private void readDataToList(File data, ArrayList<String> list) throws IOException {
         FileInputStream fileInputStream = new FileInputStream(data);
         InputStreamReader inputStreamReader = new InputStreamReader(fileInputStream);
         BufferedReader bufferedReader = new BufferedReader(inputStreamReader);
         String text;
-        while((text = bufferedReader.readLine()) != null)
-        {
+        while ((text = bufferedReader.readLine()) != null) {
             list.add(text);
         }
         bufferedReader.close();
@@ -102,11 +114,10 @@ public final class XinyueRobotMain extends JavaPlugin {
         fileInputStream.close();
     }
 
-    private void writeListToFile(ArrayList<String> list, File data) throws IOException
-    {
+    private void writeListToFile(ArrayList<String> list, File data) throws IOException {
         FileOutputStream fileOutputStream = new FileOutputStream(data);
         OutputStreamWriter outputStreamWriter = new OutputStreamWriter(fileOutputStream);
-        for(String s : list)
+        for (String s : list)
             outputStreamWriter.write(s + "\n");
         outputStreamWriter.close();
         fileOutputStream.close();
