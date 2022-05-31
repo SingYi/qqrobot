@@ -9,6 +9,9 @@ import net.mamoe.mirai.event.GlobalEventChannel;
 import net.mamoe.mirai.event.events.FriendMessageEvent;
 import net.mamoe.mirai.event.events.GroupMessageEvent;
 
+import java.lang.reflect.Member;
+
+import io.ktor.client.features.Sender;
 
 /**
  * 使用 Java 请把
@@ -29,23 +32,30 @@ import net.mamoe.mirai.event.events.GroupMessageEvent;
 public final class JavaPluginMain extends JavaPlugin {
     public static final JavaPluginMain INSTANCE = new JavaPluginMain();
     private JavaPluginMain() {
-        super(new JvmPluginDescriptionBuilder("org.example.mirai-example", "0.1.0")
-                .info("EG")
-                .build());
+        // 构建机器人的一些说明
+        super(new JvmPluginDescriptionBuilder("com.xinyue.sdk.robot", "1.0.0")
+                .info("")
+                .name("心悦机器人")
+                .author("Sans")
+                .build()
+        );
     }
 
     @Override
     public void onEnable() {
-        getLogger().info("日志");
+        getLogger().info("onEnable");
         EventChannel<Event> eventChannel = GlobalEventChannel.INSTANCE.parentScope(this);
         eventChannel.subscribeAlways(GroupMessageEvent.class, g -> {
             //监听群消息
             getLogger().info(g.getMessage().contentToString());
+            getLogger().info("收到消息");
 
         });
+
         eventChannel.subscribeAlways(FriendMessageEvent.class, f -> {
             //监听好友消息
             getLogger().info(f.getMessage().contentToString());
+            f.getSender().sendMessage("测试消息");
         });
     }
 }
