@@ -1,4 +1,4 @@
-package org.example.mirai.plugin;
+package com.xinyue.robot;
 
 import net.mamoe.mirai.console.plugin.jvm.JavaPlugin;
 import net.mamoe.mirai.console.plugin.jvm.JvmPluginDescription;
@@ -9,9 +9,7 @@ import net.mamoe.mirai.event.GlobalEventChannel;
 import net.mamoe.mirai.event.events.FriendMessageEvent;
 import net.mamoe.mirai.event.events.GroupMessageEvent;
 
-import java.lang.reflect.Member;
-
-import io.ktor.client.features.Sender;
+import java.io.File;
 
 /**
  * 使用 Java 请把
@@ -29,9 +27,9 @@ import io.ktor.client.features.Sender;
  * 不用复制到 mirai-console-loader 或其他启动器中调试
  */
 
-public final class JavaPluginMain extends JavaPlugin {
-    public static final JavaPluginMain INSTANCE = new JavaPluginMain();
-    private JavaPluginMain() {
+public final class XinyueRobotMain extends JavaPlugin {
+    public static final XinyueRobotMain INSTANCE = new XinyueRobotMain();
+    private XinyueRobotMain() {
         // 构建机器人的一些说明
         super(new JvmPluginDescriptionBuilder("com.xinyue.sdk.robot", "1.0.0")
                 .info("")
@@ -41,12 +39,22 @@ public final class JavaPluginMain extends JavaPlugin {
         );
     }
 
+    private static File adminUser;
+
     @Override
     public void onEnable() {
+
+        adminUser = XinyueRobotMain.INSTANCE.resolveDataFile("admin.txt");
+
+
         getLogger().info("onEnable");
         EventChannel<Event> eventChannel = GlobalEventChannel.INSTANCE.parentScope(this);
         eventChannel.subscribeAlways(GroupMessageEvent.class, g -> {
             //监听群消息
+            String message = g.getMessage().contentToString();
+            if (message == "哈哈") {
+
+            }
             getLogger().info(g.getMessage().contentToString());
             getLogger().info("收到消息");
 
@@ -54,8 +62,8 @@ public final class JavaPluginMain extends JavaPlugin {
 
         eventChannel.subscribeAlways(FriendMessageEvent.class, f -> {
             //监听好友消息
-            getLogger().info(f.getMessage().contentToString());
-            f.getSender().sendMessage("测试消息");
+//            getLogger().info(f.getMessage().contentToString());
+//            f.getSender().sendMessage("测试消息");
         });
     }
 }
