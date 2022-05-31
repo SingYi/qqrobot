@@ -9,6 +9,8 @@ import net.mamoe.mirai.event.GlobalEventChannel;
 import net.mamoe.mirai.event.events.FriendMessageEvent;
 import net.mamoe.mirai.event.events.GroupMessageEvent;
 
+import org.jetbrains.annotations.NotNull;
+
 import java.io.*;
 import java.util.ArrayList;
 import java.util.HashSet;
@@ -56,8 +58,10 @@ public final class XinyueRobotMain extends JavaPlugin {
         // 2. 初始化敏感词
         initSensitiveWord();
 
-//        getLogger().info("onEnable");
-//        EventChannel<Event> eventChannel = GlobalEventChannel.INSTANCE.parentScope(this);
+        // 3. 监听群组消息
+
+        EventChannel<Event> eventChannel = GlobalEventChannel.INSTANCE.parentScope(this);
+        eventChannel.subscribeAlways(GroupMessageEvent.class, this::detectSensitiveWords);
 //        eventChannel.subscribeAlways(GroupMessageEvent.class, g -> {
 //            //监听群消息
 //            String message = g.getMessage().contentToString();
@@ -69,6 +73,19 @@ public final class XinyueRobotMain extends JavaPlugin {
 //
 //        });
 
+    }
+
+    /**
+     * 敏感词检测
+     * */
+    private void detectSensitiveWords(@NotNull GroupMessageEvent event)
+    {
+        String message = event.getMessage().contentToString();
+        if (SensitiveWordUtil.contains(message)) {
+            // 包含敏感词
+            Set<String> word = SensitiveWordUtil.getSensitiveWord(message);
+            event.getGroup().sendMessage("包含敏感词 : " + word.toString());
+        }
     }
 
     /**
@@ -101,6 +118,9 @@ public final class XinyueRobotMain extends JavaPlugin {
         LogI("初始化敏感词完毕");
     }
 
+    /**
+     * 读取文件数据到内存
+     */
     private void readDataToList(File data, ArrayList<String> list) throws IOException {
         FileInputStream fileInputStream = new FileInputStream(data);
         InputStreamReader inputStreamReader = new InputStreamReader(fileInputStream);
@@ -114,6 +134,9 @@ public final class XinyueRobotMain extends JavaPlugin {
         fileInputStream.close();
     }
 
+    /**
+     * 写入内存数据到文件
+     */
     private void writeListToFile(ArrayList<String> list, File data) throws IOException {
         FileOutputStream fileOutputStream = new FileOutputStream(data);
         OutputStreamWriter outputStreamWriter = new OutputStreamWriter(fileOutputStream);
