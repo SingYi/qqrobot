@@ -6,11 +6,14 @@ import net.mamoe.mirai.console.plugin.jvm.JvmPluginDescription;
 import net.mamoe.mirai.console.plugin.jvm.JvmPluginDescriptionBuilder;
 import net.mamoe.mirai.contact.PermissionDeniedException;
 import net.mamoe.mirai.contact.Stranger;
+import net.mamoe.mirai.data.RequestEventData;
 import net.mamoe.mirai.event.Event;
 import net.mamoe.mirai.event.EventChannel;
 import net.mamoe.mirai.event.GlobalEventChannel;
+import net.mamoe.mirai.event.events.BotInvitedJoinGroupRequestEvent;
 import net.mamoe.mirai.event.events.FriendMessageEvent;
 import net.mamoe.mirai.event.events.GroupMessageEvent;
+import net.mamoe.mirai.event.events.NewFriendRequestEvent;
 import net.mamoe.mirai.message.data.At;
 import net.mamoe.mirai.message.data.MessageChain;
 import net.mamoe.mirai.message.data.MessageSource;
@@ -69,6 +72,37 @@ public final class XinyueRobotMain extends JavaPlugin {
         eventChannel.subscribeAlways(GroupMessageEvent.class, this::detectSensitiveWords);
         // 检测指令
         eventChannel.subscribeAlways(FriendMessageEvent.class, this::command);
+
+        // 好友申请
+        eventChannel.subscribeAlways(NewFriendRequestEvent.class, this::newFriendRequest);
+
+        // 加群申请
+        eventChannel.subscribeAlways(BotInvitedJoinGroupRequestEvent.class, this::botInvitedJoinGroupRequestEvent);
+
+    }
+
+    /**
+     * 好友申请
+     */
+    private void newFriendRequest(@NotNull NewFriendRequestEvent event) {
+        String senderId = String.valueOf(event.getFromId());
+        if (XinyueConfig.operationList.contains(senderId)) {
+            event.accept();
+        } else {
+            event.reject(false);
+        }
+    }
+
+    /**
+     * 邀请机器人加群
+     */
+    private void botInvitedJoinGroupRequestEvent(@NotNull BotInvitedJoinGroupRequestEvent event) {
+        String senderId = String.valueOf(event.getInvitorId());
+        if (XinyueConfig.operationList.contains(senderId)) {
+            event.accept();
+        } else {
+            event.ignore();
+        }
     }
 
     /**
@@ -133,7 +167,7 @@ public final class XinyueRobotMain extends JavaPlugin {
                     XinyueConfig.InitSensitiveWordList();
                     initSensitiveWord();
                     event.getUser().sendMessage("重新加载屏蔽词完毕.");
-                } else  {
+                } else {
                     LogE("非管理员触发指令.");
                 }
                 break;
