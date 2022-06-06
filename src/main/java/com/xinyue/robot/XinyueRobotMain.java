@@ -55,27 +55,98 @@ public final class XinyueRobotMain extends JavaPlugin {
         );
     }
 
-    private static File adminUserFile; // 管理员文件
-    private static File sensitiveWordFile; // 敏感词文件
-    private static File operationUserFile; // 运营人员文件
-
-    private static ArrayList<String> adminList; // 管理员列表
-    private static ArrayList<String> sensitiveWordList; // 管理员列表
-    private static ArrayList<String> operationList; // 运营人员列表
-
     @Override
     public void onEnable() {
         LogI("onEnable");
         // 1. 初始化配置文件
         initConfig();
-        // 2. 初始化敏感词
+        // 2. 初始化敏感词工具
         initSensitiveWord();
 
         // 3. 监听群组消息
         EventChannel<Event> eventChannel = GlobalEventChannel.INSTANCE.parentScope(this);
+        // 检测敏感词
         eventChannel.subscribeAlways(GroupMessageEvent.class, this::detectSensitiveWords);
-
+        // 检测指令
+        eventChannel.subscribeAlways(FriendMessageEvent.class, this::command);
     }
+
+    /**
+     * 检测指令
+     */
+    private void command(@NotNull FriendMessageEvent event) {
+        String message = event.getMessage().contentToString();
+        String senderId = String.valueOf(event.getSender().getId());
+        LogI("发送人: ? " + senderId);
+        if (!message.startsWith("/")) {
+            return;
+        }
+
+        String[] commands = message.split(" ");
+        if (commands == null || commands.length < 1) {
+            return;
+        }
+
+        String command = commands[0];
+        switch (command) {
+            case "/addOperation":
+            case "/添加运营人员":
+                if (commands.length < 2)
+                    break;
+                if (!iSAdmin(senderId)) {
+                    LogE("非管理员触发指令.");
+                    break;
+                }
+                XinyueConfig.AddOperation(commands[1]);
+                event.getUser().sendMessage("添加运营人员完毕.");
+                break;
+            case "/reloadAdmin":
+            case "/重载管理员":
+                if (!iSAdmin(senderId)) {
+                    LogE("非管理员触发指令.");
+                    break;
+                }
+                XinyueConfig.InitAdminList();
+                event.getUser().sendMessage("重新加载运营人员完毕.");
+                break;
+            case "/showOperation":
+            case "/查看运营人员":
+                if (!iSAdmin(senderId)) {
+                    LogE("非管理员触发指令.");
+                    break;
+                }
+                event.getUser().sendMessage(XinyueConfig.operationList.toString());
+                break;
+            case "/deleteOperation":
+            case "/删除运营人员":
+                if (!iSAdmin(senderId)) {
+                    LogE("非管理员触发指令.");
+                    break;
+                }
+                XinyueConfig.DeleteOperation(commands[1]);
+                event.getUser().sendMessage("删除运营人员完毕.");
+                break;
+            case "/reloadSensitiveWord":
+            case "/重载屏蔽词":
+            case "/重载敏感词":
+                if (iSAdmin(senderId)) {
+                    XinyueConfig.InitSensitiveWordList();
+                    initSensitiveWord();
+                    event.getUser().sendMessage("重新加载屏蔽词完毕.");
+                } else  {
+                    LogE("非管理员触发指令.");
+                }
+                break;
+            default:
+                event.getUser().sendMessage("未知指令 :" + message);
+                break;
+        }
+    }
+
+    boolean iSAdmin(String adminId) {
+        return XinyueConfig.adminList.contains(adminId);
+    }
+
 
     /**
      * 敏感词检测
@@ -103,17 +174,7 @@ public final class XinyueRobotMain extends JavaPlugin {
             }
 
             // 禁言
-            try {
-                event.getSender().mute(3600);
-                At at = new At(event.getSender().getId());
-                PlainText text = new PlainText("请勿发送违规词汇,如有疑问或误封,请联系管理员.");
-                MessageChain chain = at.plus(text);
-                event.getGroup().sendMessage(chain);
-            } catch (PermissionDeniedException e) {
-                LogE("没有权限禁言");
-            }
-
-
+            mute(event);
         }
     }
 
@@ -121,8 +182,7 @@ public final class XinyueRobotMain extends JavaPlugin {
      * 向运营人员发送消息
      */
     private void sendOperationMessage(@NotNull GroupMessageEvent event, String message) {
-
-        for (String operation : operationList) {
+        for (String operation : XinyueConfig.operationList) {
             if (operation.isEmpty()) {
                 continue;
             }
@@ -144,7 +204,21 @@ public final class XinyueRobotMain extends JavaPlugin {
                 LogE(e.toString());
             }
         }
+    }
 
+    /**
+     * 禁言
+     */
+    private void mute(@NotNull GroupMessageEvent event) {
+        try {
+            event.getSender().mute(3600);
+            At at = new At(event.getSender().getId());
+            PlainText text = new PlainText("请勿发送违规词汇,如有疑问或误封,请联系管理员.");
+            MessageChain chain = at.plus(text);
+            event.getGroup().sendMessage(chain);
+        } catch (PermissionDeniedException e) {
+            LogE("没有权限禁言");
+        }
     }
 
     /**
@@ -152,22 +226,10 @@ public final class XinyueRobotMain extends JavaPlugin {
      */
     private void initConfig() {
         LogI("初始化配置文件");
-        adminUserFile = XinyueRobotMain.INSTANCE.resolveDataFile("admin.txt");
-        sensitiveWordFile = XinyueRobotMain.INSTANCE.resolveDataFile("sensitiveWord.txt");
-        operationUserFile = XinyueRobotMain.INSTANCE.resolveDataFile("operation.txt");
-        adminList = new ArrayList<>();
-        sensitiveWordList = new ArrayList<>();
-        operationList = new ArrayList<>();
-        try {
-            LogI("读取管理员配置");
-            readDataToList(adminUserFile, adminList);
-            LogI("读取敏感词配置");
-            readDataToList(sensitiveWordFile, sensitiveWordList);
-            LogI("读取管理员配置");
-            readDataToList(operationUserFile, operationList);
-        } catch (IOException e) {
-            getLogger().info("读取数据失败！");
-        }
+        // 初始化管理员
+        XinyueConfig.InitAdminList();
+        XinyueConfig.InitOperationList();
+        XinyueConfig.InitSensitiveWordList();
         LogI("初始化配置文件完毕");
     }
 
@@ -176,37 +238,9 @@ public final class XinyueRobotMain extends JavaPlugin {
      */
     private void initSensitiveWord() {
         LogI("初始化敏感词");
-        Set<String> tmp = new HashSet<>(sensitiveWordList);
+        Set<String> tmp = new HashSet<>(XinyueConfig.sensitiveWordList);
         SensitiveWordUtil.init(tmp);
         LogI("初始化敏感词完毕");
-    }
-
-    /**
-     * 读取文件数据到内存
-     */
-    private void readDataToList(File data, ArrayList<String> list) throws IOException {
-        FileInputStream fileInputStream = new FileInputStream(data);
-        InputStreamReader inputStreamReader = new InputStreamReader(fileInputStream);
-        BufferedReader bufferedReader = new BufferedReader(inputStreamReader);
-        String text;
-        while ((text = bufferedReader.readLine()) != null) {
-            list.add(text);
-        }
-        bufferedReader.close();
-        inputStreamReader.close();
-        fileInputStream.close();
-    }
-
-    /**
-     * 写入内存数据到文件
-     */
-    private void writeListToFile(ArrayList<String> list, File data) throws IOException {
-        FileOutputStream fileOutputStream = new FileOutputStream(data);
-        OutputStreamWriter outputStreamWriter = new OutputStreamWriter(fileOutputStream);
-        for (String s : list)
-            outputStreamWriter.write(s + "\n");
-        outputStreamWriter.close();
-        fileOutputStream.close();
     }
 
     void LogI(String message) {
