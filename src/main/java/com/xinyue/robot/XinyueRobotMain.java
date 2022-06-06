@@ -1,20 +1,31 @@
 package com.xinyue.robot;
 
+import net.mamoe.mirai.Bot;
 import net.mamoe.mirai.console.plugin.jvm.JavaPlugin;
 import net.mamoe.mirai.console.plugin.jvm.JvmPluginDescription;
 import net.mamoe.mirai.console.plugin.jvm.JvmPluginDescriptionBuilder;
+import net.mamoe.mirai.contact.PermissionDeniedException;
+import net.mamoe.mirai.contact.Stranger;
 import net.mamoe.mirai.event.Event;
 import net.mamoe.mirai.event.EventChannel;
 import net.mamoe.mirai.event.GlobalEventChannel;
 import net.mamoe.mirai.event.events.FriendMessageEvent;
 import net.mamoe.mirai.event.events.GroupMessageEvent;
+import net.mamoe.mirai.message.data.At;
+import net.mamoe.mirai.message.data.MessageChain;
+import net.mamoe.mirai.message.data.MessageSource;
+import net.mamoe.mirai.message.data.PlainText;
 
 import org.jetbrains.annotations.NotNull;
 
 import java.io.*;
+import java.text.SimpleDateFormat;
 import java.util.ArrayList;
+import java.util.Date;
 import java.util.HashSet;
 import java.util.Set;
+
+import javax.xml.crypto.Data;
 
 /**
  * 使用 Java 请把
@@ -59,32 +70,67 @@ public final class XinyueRobotMain extends JavaPlugin {
         initSensitiveWord();
 
         // 3. 监听群组消息
-
         EventChannel<Event> eventChannel = GlobalEventChannel.INSTANCE.parentScope(this);
         eventChannel.subscribeAlways(GroupMessageEvent.class, this::detectSensitiveWords);
-//        eventChannel.subscribeAlways(GroupMessageEvent.class, g -> {
-//            //监听群消息
-//            String message = g.getMessage().contentToString();
-//            if (message == "哈哈") {
-//
-//            }
-//            getLogger().info(g.getMessage().contentToString());
-//            getLogger().info("收到消息");
-//
-//        });
 
     }
 
     /**
      * 敏感词检测
-     * */
-    private void detectSensitiveWords(@NotNull GroupMessageEvent event)
-    {
+     */
+    private void detectSensitiveWords(@NotNull GroupMessageEvent event) {
         String message = event.getMessage().contentToString();
         if (SensitiveWordUtil.contains(message)) {
             // 包含敏感词
             Set<String> word = SensitiveWordUtil.getSensitiveWord(message);
-            event.getGroup().sendMessage("包含敏感词 : " + word.toString());
+
+            // 撤回消息
+            try {
+                MessageSource.recall(event.getSource());
+            } catch (PermissionDeniedException e) {
+                LogE("没有权限撤回消息");
+            }
+
+            // 禁言
+            try {
+                event.getSender().mute(3600);
+                At at = new At(event.getSender().getId());
+                PlainText text = new PlainText("请勿发送违规词汇,如有疑问或误封,请联系管理员.");
+                MessageChain chain = at.plus(text);
+                event.getGroup().sendMessage(chain);
+            } catch (PermissionDeniedException e) {
+                LogE("没有权限禁言");
+            }
+
+            // 向管理员发送禁言消息
+            for (String admin : adminList) {
+                if (admin.isEmpty()) {
+                    continue;
+                }
+                long qq = Long.valueOf(admin);
+
+                Date date = new Date();
+                long times = date.getTime();//时间戳
+                SimpleDateFormat formatter = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
+                String dateString = formatter.format(date);
+
+                String sendMessage = String.format("%s - 用户 [%s](%s) 在群 [%s](%s) 发送敏感词句 [%s]\n 敏感词为: %s",
+                        dateString,
+                        event.getSender().getId(),
+                        event.getSender().getNick(),
+                        event.getGroup().getId(),
+                        event.getGroup().getName(),
+                        message,
+                        word
+                );
+
+                LogI(sendMessage);
+                try {
+                    Bot.getInstances().get(0).getFriend(qq).sendMessage(sendMessage);
+                } catch (Exception e) {
+                    LogE(e.toString());
+                }
+            }
         }
     }
 
