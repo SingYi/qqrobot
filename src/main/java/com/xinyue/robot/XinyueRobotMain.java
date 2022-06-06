@@ -57,9 +57,11 @@ public final class XinyueRobotMain extends JavaPlugin {
 
     private static File adminUserFile; // 管理员文件
     private static File sensitiveWordFile; // 敏感词文件
+    private static File operationUserFile; // 运营人员文件
 
     private static ArrayList<String> adminList; // 管理员列表
     private static ArrayList<String> sensitiveWordList; // 管理员列表
+    private static ArrayList<String> operationList; // 运营人员列表
 
     @Override
     public void onEnable() {
@@ -80,15 +82,24 @@ public final class XinyueRobotMain extends JavaPlugin {
      */
     private void detectSensitiveWords(@NotNull GroupMessageEvent event) {
         String message = event.getMessage().contentToString();
-        if (SensitiveWordUtil.contains(message)) {
-            // 包含敏感词
-            Set<String> word = SensitiveWordUtil.getSensitiveWord(message);
 
-            // 撤回消息
+        // 包含敏感词
+        Set<String> word = SensitiveWordUtil.getSensitiveWord(message);
+        if (word != null && !word.isEmpty()) {
             try {
+                // 撤回消息
                 MessageSource.recall(event.getSource());
+
+                String sendMessage = String.format("用户 [%s](%s) 发送敏感词句 [%s] \n 敏感词为: %s",
+                        event.getSender().getId(),
+                        event.getSender().getNick(),
+                        message,
+                        word
+                );
+
+                sendOperationMessage(event, sendMessage);
             } catch (PermissionDeniedException e) {
-                LogE("没有权限撤回消息");
+                sendOperationMessage(event, "没有权限撤回消息");
             }
 
             // 禁言
@@ -102,36 +113,38 @@ public final class XinyueRobotMain extends JavaPlugin {
                 LogE("没有权限禁言");
             }
 
-            // 向管理员发送禁言消息
-            for (String admin : adminList) {
-                if (admin.isEmpty()) {
-                    continue;
-                }
-                long qq = Long.valueOf(admin);
 
-                Date date = new Date();
-                long times = date.getTime();//时间戳
-                SimpleDateFormat formatter = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
-                String dateString = formatter.format(date);
+        }
+    }
 
-                String sendMessage = String.format("%s - 用户 [%s](%s) 在群 [%s](%s) 发送敏感词句 [%s]\n 敏感词为: %s",
-                        dateString,
-                        event.getSender().getId(),
-                        event.getSender().getNick(),
-                        event.getGroup().getId(),
-                        event.getGroup().getName(),
-                        message,
-                        word
-                );
+    /**
+     * 向运营人员发送消息
+     */
+    private void sendOperationMessage(@NotNull GroupMessageEvent event, String message) {
 
-                LogI(sendMessage);
-                try {
-                    Bot.getInstances().get(0).getFriend(qq).sendMessage(sendMessage);
-                } catch (Exception e) {
-                    LogE(e.toString());
-                }
+        for (String operation : operationList) {
+            if (operation.isEmpty()) {
+                continue;
+            }
+            long qq = Long.valueOf(operation);
+
+            Date date = new Date();
+            SimpleDateFormat formatter = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
+            String dateString = formatter.format(date);
+            String sendMessage = String.format("%s - 群 [%s](%s) : %s",
+                    dateString,
+                    event.getGroup().getId(),
+                    event.getGroup().getName(),
+                    message
+            );
+
+            try {
+                Bot.getInstances().get(0).getFriend(qq).sendMessage(sendMessage);
+            } catch (Exception e) {
+                LogE(e.toString());
             }
         }
+
     }
 
     /**
@@ -141,13 +154,17 @@ public final class XinyueRobotMain extends JavaPlugin {
         LogI("初始化配置文件");
         adminUserFile = XinyueRobotMain.INSTANCE.resolveDataFile("admin.txt");
         sensitiveWordFile = XinyueRobotMain.INSTANCE.resolveDataFile("sensitiveWord.txt");
+        operationUserFile = XinyueRobotMain.INSTANCE.resolveDataFile("operation.txt");
         adminList = new ArrayList<>();
         sensitiveWordList = new ArrayList<>();
+        operationList = new ArrayList<>();
         try {
             LogI("读取管理员配置");
             readDataToList(adminUserFile, adminList);
             LogI("读取敏感词配置");
             readDataToList(sensitiveWordFile, sensitiveWordList);
+            LogI("读取管理员配置");
+            readDataToList(operationUserFile, operationList);
         } catch (IOException e) {
             getLogger().info("读取数据失败！");
         }
