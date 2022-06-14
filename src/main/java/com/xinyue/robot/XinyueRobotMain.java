@@ -216,9 +216,7 @@ public final class XinyueRobotMain extends JavaPlugin {
         Set<String> word = SensitiveWordUtil.getSensitiveWord(result);
         if (word != null && !word.isEmpty()) {
             try {
-                // 撤回消息
-                MessageSource.recall(event.getSource());
-
+                // 先发送告知,再撤回
                 String sendMessage = String.format("用户 [%s](%s) 发送敏感词句 [%s] \n 敏感词为: %s",
                         event.getSender().getId(),
                         event.getSender().getNick(),
@@ -227,6 +225,9 @@ public final class XinyueRobotMain extends JavaPlugin {
                 );
 
                 sendOperationMessage(event, sendMessage);
+
+                // 撤回消息
+                MessageSource.recall(event.getSource());
             } catch (PermissionDeniedException e) {
                 sendOperationMessage(event, "没有权限撤回消息");
             }
