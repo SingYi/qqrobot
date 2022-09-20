@@ -223,12 +223,12 @@ public final class XinyueRobotMain extends JavaPlugin {
                         message,
                         word
                 );
-            LogI(sendMessage);
+            LogE(sendMessage);
 //
 //                sendOperationMessage(event, sendMessage);
 //
-//                // 撤回消息
-//                MessageSource.recall(event.getSource());
+//                // 撤回消息g
+                MessageSource.recall(event.getSource());
 //            } catch (PermissionDeniedException e) {
 //                sendOperationMessage(event, "没有权限撤回消息");
 //            }
