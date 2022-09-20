@@ -258,6 +258,7 @@ public final class XinyueRobotMain extends JavaPlugin {
             );
 
             try {
+                Thread.sleep(1000);
                 Bot.getInstances().get(0).getFriend(qq).sendMessage(sendMessage);
             } catch (Exception e) {
                 LogE(e.toString());
